@@ -11,8 +11,6 @@ thread_local Processor *Processor::m_curr{nullptr};
 size_t Processor::m_ids{0};
 atomic<int> Processor::m_total_tasks{0};
 
-mutex outputmtx;
-
 Processor *& Processor::getProcessor()
 {
     return m_curr;
@@ -60,12 +58,6 @@ Processor::Processor(Scheduler *scheduler, size_t id)
     m_stack_top = m_stack + m_stack_size;
 }
 
-size_t Processor::taskSize()
-{
-//    lock_guard<mutex> lock(m_ready_lock);
-    return m_ready.size();
-}
-
 void Processor::addTask(TaskFn fn, void *args)
 {
     m_total_tasks++;
@@ -83,26 +75,28 @@ void Processor::addTask(TaskFn fn, void *args)
 
 Task *Processor::getTask()
 {
-    unique_lock<mutex> lock(m_ready_lock);
     if(m_ready.empty())
     {
-       // cout << "try steal task\n";
         auto ret = m_scheduler->stealTask(this);
+        unique_lock<mutex> lock(m_ready_lock);
         if(!ret.empty())
         {
-            //cout << "steal task success" << endl;
             m_ready.merge(ret);
         }
         else // 没有偷到任务，等待
         {
+            // 这里不知道有没有必要加
             if(m_total_tasks == 0)
                 return nullptr;
+
             m_cv.wait(lock);
+
             if(m_total_tasks == 0)
                 return nullptr;
         }
     }
 
+    unique_lock<mutex> lock(m_ready_lock);
     auto ret = m_ready.front();
     m_ready.pop_front();
     return ret;
@@ -121,7 +115,7 @@ void Processor::initContext(Task *task)
 
 void Processor::run()
 {
-    cout << this_thread::get_id() << " " << __func__ << endl;
+    //cout << this_thread::get_id() << " " << __func__ << endl;
     getProcessor() = this;
     while(m_total_tasks)
     {
@@ -131,7 +125,7 @@ void Processor::run()
             assert(m_total_tasks == 0);
             break;
         }
-        //cout << this_thread::get_id() << " " << "get task " << task->id << endl;
+        //cout << "[" << m_id << "] " << "get task " << task->id << endl;
         auto status = task->status;
         task->status = TaskStatus::TaskRunning;
         m_running_task = task;
@@ -155,7 +149,6 @@ void Processor::run()
             cout << "error\n";
             return;
         }
-       // cout << "return to run\n";
 
         if(m_running_task->status == TaskStatus::TaskDead)
         {
@@ -163,6 +156,11 @@ void Processor::run()
             m_running_task = nullptr;
         }
     }
+    static bool mark = false;
+    if(mark) return;
+    mark = true;
+
+    //cout << "done\n";
     assert(m_total_tasks == 0);
     m_scheduler->wakeupAll();    
 }

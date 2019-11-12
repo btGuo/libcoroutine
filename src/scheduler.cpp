@@ -92,17 +92,18 @@ void Scheduler::start(int min, int max)
         t.detach();
     }      
     m_self->run();
+    showStatistics();
+}
 
-    cout << "all done\n";
+void Scheduler::showStatistics()
+{
     cout << "statics\n";
     cout << "===========================\n";
     for(auto p : m_processors)
         p->showStatistics();
 
     cout << "===========================\n";
-    exit(EXIT_SUCCESS);
 }
-
 
 void Scheduler::wakeupAll()
 {
