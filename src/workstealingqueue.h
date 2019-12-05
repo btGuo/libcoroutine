@@ -3,6 +3,9 @@
 
 #include "circulqueue.h"
 
+namespace co
+{
+
 /**
  * 无锁任务窃取队列，根据《多处理器编程的艺术》16章算法写的
  * @note push和pop操作同时只能有一个，但和steal操作可以并发，多个steal可以并发
@@ -16,10 +19,17 @@ public:
         tasks = std:: make_shared<CirculQueue<T>>();
     }
 
+    std:: size_t size()
+    {
+        std:: size_t bottom = m_bottom.load();
+        std:: size_t top = m_top.load();
+        return bottom > top ? bottom - top : 0;
+    }
+
     bool empty()
     {
-        size_t top = m_top.load();
-        size_t bottom = m_bottom.load();
+        std:: size_t top = m_top.load();
+        std:: size_t bottom = m_bottom.load();
         return bottom <= top;
     }
     
@@ -34,8 +44,8 @@ public:
      */
     void push(const T item)
     {
-        size_t oldbottom = m_bottom.load();
-        size_t oldtop = m_top.load();
+        std:: size_t oldbottom = m_bottom.load();
+        std:: size_t oldtop = m_top.load();
         std:: shared_ptr<CirculQueue<T>> curr_tasks = tasks;
 
         if(oldbottom > oldtop && // 先判断是否大于，因为是无符号的，不能直接相减 
@@ -45,7 +55,7 @@ public:
             tasks = curr_tasks;
         }
         tasks->put(oldbottom, item);
-        m_bottom.fetch_add(1);
+        m_bottom++;
     }
 
     /**
@@ -56,8 +66,8 @@ public:
     bool pop(T &result)
     {
         m_bottom--;
-        size_t oldtop = m_top.load();
-        size_t newtop = oldtop + 1;
+        std:: size_t oldtop = m_top.load();
+        std:: size_t newtop = oldtop + 1;
         if(m_bottom < oldtop)
         {
             m_bottom.store(oldtop);
@@ -86,9 +96,9 @@ public:
      */
     bool steal(T &result)
     {
-        size_t oldtop = m_top.load();
-        size_t newtop = oldtop + 1;
-        size_t oldbottom = m_bottom.load();
+        std:: size_t oldtop = m_top.load();
+        std:: size_t newtop = oldtop + 1;
+        std:: size_t oldbottom = m_bottom.load();
 
         if(oldbottom <= oldtop)
             return false;
@@ -101,9 +111,11 @@ public:
     }
 
 private:
-    std:: atomic<size_t> m_bottom{1};
-    std:: atomic<size_t> m_top{1};
+    std:: atomic<std:: size_t> m_bottom{1};
+    std:: atomic<std:: size_t> m_top{1};
     std:: shared_ptr<CirculQueue<T>> tasks;
 };
+
+}
 
 #endif

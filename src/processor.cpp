@@ -6,194 +6,136 @@
 #include <string.h>
 #include <stdlib.h>
 #include <mutex>
+#include <random>
+
+namespace co
+{
+
+using namespace std;
 
 thread_local Processor *Processor::m_curr{nullptr};
 size_t Processor::m_ids{0};
 atomic<int> Processor::m_total_tasks{0};
-
-Processor *& Processor::getProcessor()
-{
-    return m_curr;
-}
-
-void Processor::taskMain(uint32_t low32, uint32_t high32)
-{
-    uintptr_t ptr = (uintptr_t)low32 | ((uintptr_t)high32 << 32);
-    Task *task = (Task *)ptr;
-
-    task->fn(task->args);
-    task->status = TaskStatus::TaskDead;
-
-    m_total_tasks--;
-}
-
-void Processor::taskYield()
-{
-    char curr;
-    Task *task = m_running_task;
-    size_t stack_size = (uintptr_t)m_stack_top - (uintptr_t)&curr;
-
-    assert(stack_size < m_stack_size);
-
-    if(task->cap < stack_size)
-    {
-        task->data = static_cast<char*>(realloc(task->data, stack_size));
-        task->cap = stack_size;
-    }
-    memcpy(task->data, m_stack_top - stack_size, stack_size);
-    task->status = TaskStatus::TaskSuspend;
-
-    {
-        lock_guard<mutex> lock(m_ready_lock);
-        m_ready.push_back(task);
-    }
-    swapcontext(&task->ctx, &m_ctx);
-}
+list<Task *> Processor:: m_global;
+mutex Processor:: m_global_mutex;
 
 Processor::Processor(Scheduler *scheduler, size_t id)
 {
     m_id = id;
     m_scheduler = scheduler;
-    m_stack = static_cast<char*>(malloc(m_stack_size));
-    m_stack_top = m_stack + m_stack_size;
 }
 
-void Processor::addTask(TaskFn fn, void *args)
+Processor *& Processor::getThisThreadProcessor()
 {
+    return m_curr;
+}
+
+void Processor::taskYield()
+{
+    Task *task = m_running_task;
+    m_ready.push(task);
+    task->yield(&m_ctx);
+}
+
+void Processor::addTask(Task:: TaskFn fn, size_t stack_size)
+{
+    m_task_count++;
     m_total_tasks++;
+    Task *task = new Task(fn, m_ids++, stack_size);
 
-    Task *task = allocTask();
-    task->fn = fn;
-    task->args = args;
-    task->status = TaskStatus::TaskReady;
-    task->id = m_ids++;
-
-    lock_guard<mutex> lock(m_ready_lock);
-    m_ready.push_back(task);
-    m_cv.notify_all();
-}
-
-Task *Processor::getTask()
-{
-    if(m_ready.empty())
+    if(m_task_count % 32)
     {
-        auto ret = m_scheduler->stealTask(this);
-        unique_lock<mutex> lock(m_ready_lock);
-        if(!ret.empty())
-        {
-            m_ready.merge(ret);
-        }
-        else // 没有偷到任务，等待
-        {
-            // 这里不知道有没有必要加
-            if(m_total_tasks == 0)
-                return nullptr;
-
-            m_cv.wait(lock);
-
-            if(m_total_tasks == 0)
-                return nullptr;
-        }
+        lock_guard<mutex> lock(m_global_mutex);
+        m_global.push_back(task);
+        m_cv.notify_one();
     }
-
-    unique_lock<mutex> lock(m_ready_lock);
-    auto ret = m_ready.front();
-    m_ready.pop_front();
-    return ret;
+    else 
+    {
+        m_ready.push(task);
+    }
 }
 
-void Processor::initContext(Task *task)
+void Processor::runTask(Task *task)
 {
-    getcontext(&task->ctx);
-    task->ctx.uc_stack.ss_sp = m_stack;
-    task->ctx.uc_stack.ss_size = m_stack_size;
-    task->ctx.uc_link = &m_ctx;
+    //cout << "[" << m_id << "] " << "get task " << task->id << endl;
+    m_running_task = task;
 
-    uintptr_t ptr = (uintptr_t)task;
-    makecontext(&task->ctx, (void (*)(void))taskMain, 2, (uint32_t)ptr, (uint32_t)(ptr >> 32));
-} 
+    task->swapIn(&m_ctx);
+
+    if(task->taskDead())
+    {
+        delete task;
+        m_running_task = nullptr;
+        m_total_tasks--;
+    }
+}
 
 void Processor::run()
 {
-    //cout << this_thread::get_id() << " " << __func__ << endl;
-    getProcessor() = this;
+  //cout << m_id << " " << __func__ << endl;
+    m_curr = this;
+    random_device rd;
+    default_random_engine random(rd());
+
     while(m_total_tasks)
     {
-        Task *task = getTask();
-        if(task == nullptr)
+        Task *task;
+        if(m_ready.pop(task))
         {
-            assert(m_total_tasks == 0);
-            break;
-        }
-        //cout << "[" << m_id << "] " << "get task " << task->id << endl;
-        auto status = task->status;
-        task->status = TaskStatus::TaskRunning;
-        m_running_task = task;
-
-        m_task_done++;
-
-        switch(status){
-        case TaskStatus::TaskReady:
-
-            initContext(task);
-            swapcontext(&m_ctx, &task->ctx);
-            break;
-
-        case TaskStatus::TaskSuspend:
-
-            memcpy(m_stack_top - task->cap, task->data, task->cap);
-            swapcontext(&m_ctx, &task->ctx);
-            break;
-
-        default:
-            cout << "error\n";
-            return;
+            runTask(task);
+            continue;
         }
 
-        if(m_running_task->status == TaskStatus::TaskDead)
+        //先去全局队列里面找
         {
-            freeTask(m_running_task);
-            m_running_task = nullptr;
+            lock_guard<mutex> lock(m_global_mutex);
+            if(!m_global.empty())
+            {
+                m_ready.push(m_global.front());
+                m_global.pop_front();
+                continue;
+            }
+        }
+
+        //尝试窃取任务
+        size_t procsize = m_scheduler->getProcessorSize();
+        procsize <<= 1;
+        while(procsize--)
+        {
+            Processor *victim = m_scheduler->getProcessor(
+                    random() % m_scheduler->getProcessorSize());
+            if(victim == this)
+                continue;
+    
+            if(victim->m_ready.size())
+            {
+                size_t quesize = victim->m_ready.size();
+                auto & stealque = victim->m_ready;
+                quesize >>= 1;
+                while(quesize--)
+                {
+                    Task *ret;
+                    if(stealque.steal(ret))
+                        m_ready.push(ret);
+                }
+                break;
+            }
+        }
+
+        if(m_ready.size() == 0)
+        {
+            unique_lock<mutex> lock(m_global_mutex);
+            m_cv.wait(lock);
         }
     }
+
     static bool mark = false;
     if(mark) return;
     mark = true;
 
-    //cout << "done\n";
     assert(m_total_tasks == 0);
+    //cout << "done\n";
     m_scheduler->wakeupAll();    
-}
-
-list<Task *> Processor::moveTask()
-{
-    lock_guard<mutex> lock(m_ready_lock);
-    //cout << __func__ << endl;
-    list<Task *>ret;
-    if(m_ready.size() < 3)
-        return ret;
-
-    auto it = m_ready.rbegin();
-    int len = m_ready.size() / 3;
-    //cout << len << endl;
-    while(len--)it++;
-    ret.splice(ret.end(), m_ready, it.base(), m_ready.end());
-
-    return ret;
-}
-
-Task *Processor::allocTask()
-{
-    if(m_free.empty())
-        return new Task();
-    auto ret = m_free.front();
-    m_free.pop_front();
-    return ret;
-}
-
-void Processor::freeTask(Task *task)
-{
-    m_free.push_back(task);
 }
 
 void Processor::wakeup()
@@ -203,6 +145,7 @@ void Processor::wakeup()
 
 void Processor::showStatistics()
 {
-    cout << "[" << m_id << "]" << " complete " << m_task_done << " jobs\n";
+    cout << "[" << m_id << "]" << " complete " << m_task_count << " jobs\n";
 }
 
+}

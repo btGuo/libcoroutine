@@ -4,8 +4,10 @@
 #include <assert.h>
 #include <atomic>
 
+namespace co
+{
 /**
- * 环形队列
+ * 环形队列，T只能是基本数据类型
  */
 template <typename T>
 class CirculQueue
@@ -18,7 +20,7 @@ public:
     }
     ~CirculQueue(){ delete [] m_data; }
     size_t size(){  return m_size; }
-    T get(size_t i){ return m_data[i & m_mask]; }
+    T get(size_t i){ return m_data[i & m_mask].load(); }
     void put(size_t i, T elem){ m_data[i & m_mask].store(elem); }
     std:: shared_ptr<CirculQueue<T>> new_double_capacity()
     {
@@ -36,5 +38,7 @@ private:
     const size_t m_mask;
     std:: atomic<T> *m_data{nullptr};
 };
+
+}
 
 #endif

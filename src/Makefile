@@ -1,15 +1,17 @@
 CC=g++
-CCFLAGS = -std=c++11 
 AR=ar
 OUT=libcoroutine.a
-SRCS=scheduler.c processor.c 
-OBJS=scheduler.o processor.o
+CXXFLAGS=-std=c++11 -O2
 
-.c.o:
-	$(CC) $(CCFLAGS) $< -o $@
+SRCS=$(wildcard *.cpp)
+OBJS=$(SRCS:.cpp=.o)
 
 $(OUT):$(OBJS)
 	$(AR) rcs $(OUT) $(OBJS)
 
+.c.o:
+	$(CC) $< 
+
+.PHONY:clean 
 clean:
 	rm *.o $(OUT)
