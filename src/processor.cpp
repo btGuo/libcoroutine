@@ -16,8 +16,7 @@ using namespace std;
 thread_local Processor *Processor::m_curr{nullptr};
 size_t Processor::m_ids{0};
 atomic<int> Processor::m_total_tasks{0};
-list<Task *> Processor:: m_global;
-mutex Processor:: m_global_mutex;
+ThreadSafeQueue<Task *> Processor:: m_global;
 
 Processor::Processor(Scheduler *scheduler, size_t id)
 {
@@ -30,29 +29,43 @@ Processor *& Processor::getThisThreadProcessor()
     return m_curr;
 }
 
+void Processor::taskBlock()
+{
+    m_blocks++;
+    m_running_task->block(&m_ctx);
+}
+
 void Processor::taskYield()
 {
     Task *task = m_running_task;
-    m_ready.push(task);
+    m_yield.push_back(task);
     task->yield(&m_ctx);
 }
 
-void Processor::addTask(Task:: TaskFn fn, size_t stack_size)
+void Processor::taskWakeup(Task *task)
+{
+    m_wakeup.push(task);
+    // 顺序不能反!!!
+    m_blocks--;
+}
+
+void Processor::addTask(Task *task)
 {
     m_task_count++;
     m_total_tasks++;
-    Task *task = new Task(fn, m_ids++, stack_size);
-
-    if(m_task_count % 32)
+    if(m_task_count % 32 == 0)
     {
-        lock_guard<mutex> lock(m_global_mutex);
-        m_global.push_back(task);
-        m_cv.notify_one();
+        m_global.push(task);
     }
     else 
     {
         m_ready.push(task);
     }
+}
+
+void Processor::addTask(Task:: TaskFn fn, size_t stack_size)
+{
+    addTask(new Task(fn, m_ids++, stack_size));
 }
 
 void Processor::runTask(Task *task)
@@ -72,29 +85,26 @@ void Processor::runTask(Task *task)
 
 void Processor::run()
 {
-  //cout << m_id << " " << __func__ << endl;
+    //cout << m_id << " " << __func__ << endl;
     m_curr = this;
     random_device rd;
     default_random_engine random(rd());
 
-    while(m_total_tasks)
+    while(true)
     {
         Task *task;
-        if(m_ready.pop(task))
+        if(m_wakeup.pop(task) || m_ready.pop(task))
         {
             runTask(task);
             continue;
         }
 
-        //先去全局队列里面找
+        //先拿出yield任务
+        if(!m_yield.empty())
         {
-            lock_guard<mutex> lock(m_global_mutex);
-            if(!m_global.empty())
-            {
-                m_ready.push(m_global.front());
-                m_global.pop_front();
-                continue;
-            }
+            m_ready.push(m_yield.front());
+            m_yield.pop_front();
+            continue;
         }
 
         //尝试窃取任务
@@ -121,14 +131,33 @@ void Processor::run()
                 break;
             }
         }
+        //这个判读一定要加
+        if(m_ready.size())
+            continue;
 
-        if(m_ready.size() == 0)
+        //在全局队列里面找
+        if(m_global.pop(task))
         {
-            unique_lock<mutex> lock(m_global_mutex);
-            m_cv.wait(lock);
+            m_ready.push(task);
+            continue;
         }
+
+        //是否有阻塞任务，等待
+        if(m_blocks.load())
+        {
+            //cout << "processor " << m_id << " wait m_wakeup" << endl;
+            m_wakeup.waitAndPop(task);
+            m_ready.push(task);
+            continue;
+        }
+        
+        //没有阻塞任务，在全局队列上等待
+        m_global.waitAndPop(task);
+        //cout << "processor " << m_id << " wait m_global" << endl;
+        m_ready.push(task);
     }
 
+    /*
     static bool mark = false;
     if(mark) return;
     mark = true;
@@ -136,16 +165,22 @@ void Processor::run()
     assert(m_total_tasks == 0);
     //cout << "done\n";
     m_scheduler->wakeupAll();    
+    */
 }
 
 void Processor::wakeup()
 {
-    m_cv.notify_all();
+    //m_cv.notify_all();
 }
 
 void Processor::showStatistics()
 {
     cout << "[" << m_id << "]" << " complete " << m_task_count << " jobs\n";
+}
+
+Task *Processor::getRunningTask() 
+{
+    return m_running_task;
 }
 
 }

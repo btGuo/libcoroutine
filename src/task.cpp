@@ -33,6 +33,12 @@ void Task:: taskMain(uint32_t low32, uint32_t high32)
     task->m_status = TaskStatus:: TaskDead;
 }
 
+void Task:: block(ucontext_t *pctx)
+{
+    m_status = TaskStatus:: TaskBlock;
+    swapcontext(&m_ctx, pctx);
+}
+
 void Task:: yield(ucontext_t *pctx)
 {
     m_status = TaskStatus:: TaskSuspend;
@@ -62,6 +68,11 @@ bool Task:: taskDead()
     return m_status == TaskStatus:: TaskDead;
 }
 
+bool Task:: taskBlock()
+{
+    return m_status == TaskStatus:: TaskBlock;
+}
+
 void *Task:: operator new(size_t size)
 {
     return TaskAllocator::getInstance().alloc();       
@@ -70,6 +81,11 @@ void *Task:: operator new(size_t size)
 void Task:: operator delete(void *ptr)
 {
     return TaskAllocator::getInstance().free(ptr);
+}
+
+size_t Task:: getId()
+{
+    return m_id;
 }
 
 }

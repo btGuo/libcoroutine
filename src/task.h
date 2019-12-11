@@ -11,7 +11,7 @@ namespace co
  */
 enum class TaskStatus
 {
-    TaskRunning, TaskDead, TaskSuspend, TaskReady,
+    TaskRunning, TaskDead, TaskSuspend, TaskReady, TaskBlock,
 };
 
 class Task
@@ -21,15 +21,18 @@ public:
     Task(TaskFn fn, std:: size_t id, std:: size_t stack_size);
     ~Task();
     static void taskMain(uint32_t low32, uint32_t high32);
+    std:: size_t getId();
     void yield(ucontext_t *pctx);
+    void block(ucontext_t *pctx);
     void initContext(ucontext_t *pctx);
     void swapIn(ucontext_t *pctx);
     bool taskDead();
+    bool taskBlock();
     void *operator new(std:: size_t size);
     void operator delete(void *ptr);
 
 private:
-    TaskFn     m_fn;
+    TaskFn      m_fn;
     ucontext_t m_ctx;
     TaskStatus m_status;
     char *     m_stack{nullptr};

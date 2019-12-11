@@ -2,6 +2,7 @@
 #define __COROUTINE_H
 
 #include "scheduler.h"
+#include "channel.h"
 #include "taskstackallocator.h"
 #include <functional>
 
@@ -36,5 +37,8 @@ co_sched()
 {
     return co::Scheduler::getInstance();
 }
+
+template <typename T>
+using co_chan = co::Channel<T>;
 
 #endif
