@@ -14,19 +14,19 @@ template <typename T>
 class Channel 
 {
 public:
-
     struct BlockEntry
     {
         Task *t;
         Processor *p;
     };
+    Channel(std::size_t buflen = 0):m_buflen(buflen){}
 
     template <typename U, 
              enable_if_t<std::is_same<T, remove_reference_t<U> >::value, int> = 0>
     Channel & operator << (U &&item)
     {
-        std:: unique_lock<std:: mutex> lock(m_mtx);
-        m_queue.push_back(std:: forward<U>(item));
+        std::unique_lock<std::mutex> lock(m_mtx);
+        m_queue.push_back(std::forward<U>(item));
         if(!m_rque.empty())
         {
             BlockEntry en = m_rque.front();
@@ -34,7 +34,8 @@ public:
             en.p->taskWakeup(en.t);
         }
             
-        while(m_queue.size() > m_buflen)
+        //这里用if，不是while
+        if(m_queue.size() > m_buflen)
         {
             Processor *p = Processor:: getThisThreadProcessor();
             m_wque.push_back({p->getRunningTask(), p});
@@ -47,7 +48,8 @@ public:
 
     Channel & operator >> (T &item)
     {
-        std:: unique_lock<std:: mutex> lock(m_mtx);
+        std::unique_lock<std::mutex> lock(m_mtx);
+        //这里是while
         while(m_queue.empty())
         {
             Processor *p = Processor:: getThisThreadProcessor();
@@ -67,12 +69,18 @@ public:
         }
         return *this;
     }
+
+    Channel(Channel &ch) = delete;
+    Channel(Channel &&ch) = delete;
+    Channel & operator = (Channel &ch) = delete;
+    Channel & operator = (Channel &&ch) = delete;
+
 private:
-    std:: size_t  m_buflen{0};
-    std:: list<T> m_queue;
-    std:: list<BlockEntry> m_wque;
-    std:: list<BlockEntry> m_rque;
-    std:: mutex        m_mtx;
+    std::size_t           m_buflen{0};
+    std::list<T>          m_queue;
+    std::list<BlockEntry> m_wque;
+    std::list<BlockEntry> m_rque;
+    std::mutex            m_mtx;
 };
 
 }
