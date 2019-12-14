@@ -20,7 +20,7 @@ co_setstacksize(size_t stack_size)
     co::TaskStackAllocator::getInstance().setSize(stack_size);
 }
 
-static inline std:: size_t
+static inline std::size_t
 co_getstacksize()
 {
     return co::TaskStackAllocator::getInstance().getSize();
@@ -29,7 +29,7 @@ co_getstacksize()
 static inline void 
 co_yield()
 {
-    co::Processor:: getThisThreadProcessor()->taskYield();
+    co::Processor::getThisThreadProcessor()->taskYield();
 }
 
 static inline co::Scheduler &

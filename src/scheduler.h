@@ -26,15 +26,11 @@ public:
     /**
      * 获取m_processors队列大小
      */
-    std:: size_t getProcessorSize();
+    std::size_t getProcessorSize();
     /**
      * 获取m_processors[pos]元素
      */
-    Processor *getProcessor(std:: size_t pos);
-    /**
-     * 唤醒所有等待的任务
-     */
-    void wakeupAll();
+    Processor *getProcessor(std::size_t pos);
     /**
      * 打印统计信息
      */
@@ -44,11 +40,11 @@ public:
      */
 private:
 
-    std:: vector<Processor *> m_processors; ///< 所有processor队列
-    Processor *m_self{nullptr};       ///< 调度器所在的processor
-    int m_min_threads{0};             ///< 最小调度线程数
-    int m_max_threads{0};             ///< 最大调度线程数
-    static std:: size_t m_ids;              ///< 用于给processor分配id
+    std::vector<Processor *> m_processors; ///< 所有processor队列
+    Processor               *m_self{nullptr};       ///< 调度器所在的processor
+    int                      m_min_threads{0};             ///< 最小调度线程数
+    int                      m_max_threads{0};             ///< 最大调度线程数
+    static std::size_t       m_ids;              ///< 用于给processor分配id
 
     Scheduler();
     ~Scheduler();

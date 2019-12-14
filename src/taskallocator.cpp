@@ -5,7 +5,7 @@
 namespace co
 {
 
-void *TaskAllocator:: alloc()
+void *TaskAllocator::alloc()
 {
     void *ret = freelistAlloc();
     if(ret)
@@ -13,17 +13,17 @@ void *TaskAllocator:: alloc()
     return _alloc();
 }
 
-void TaskAllocator:: free(void *ptr)
+void TaskAllocator::free(void *ptr)
 {
     freelistFree(ptr);
 }
 
-void *TaskAllocator:: _alloc()
+void *TaskAllocator::_alloc()
 {
     return malloc(m_size);
 }
 
-TaskAllocator:: TaskAllocator()
+TaskAllocator::TaskAllocator()
 {
     m_size = sizeof(Task);
 }

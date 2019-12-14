@@ -43,12 +43,6 @@ Processor *Scheduler::getProcessor(size_t id)
     return m_processors[id];
 }
 
-void Scheduler::wakeupAll()
-{
-    for(auto p : m_processors)
-        p->wakeup();
-}
-
 void Scheduler::showStatistics()
 {
     cout << "statics\n";

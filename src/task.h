@@ -17,27 +17,27 @@ enum class TaskStatus
 class Task
 {
 public:
-    using TaskFn = std:: function<void()>;
-    Task(TaskFn fn, std:: size_t id, std:: size_t stack_size);
+    using TaskFn = std::function<void()>;
+    Task(TaskFn fn, std::size_t id, std::size_t stack_size);
     ~Task();
     static void taskMain(uint32_t low32, uint32_t high32);
-    std:: size_t getId();
+    std::size_t getId();
     void yield(ucontext_t *pctx);
     void block(ucontext_t *pctx);
     void initContext(ucontext_t *pctx);
     void swapIn(ucontext_t *pctx);
     bool taskDead();
     bool taskBlock();
-    void *operator new(std:: size_t size);
+    void *operator new(std::size_t size);
     void operator delete(void *ptr);
 
 private:
-    TaskFn      m_fn;
-    ucontext_t m_ctx;
-    TaskStatus m_status;
-    char *     m_stack{nullptr};
-    std:: size_t     m_stack_size;
-    std:: size_t     m_id;
+    TaskFn       m_fn;
+    ucontext_t   m_ctx;
+    TaskStatus   m_status;
+    char        *m_stack{nullptr};
+    std::size_t  m_stack_size;
+    std::size_t  m_id;
 };
 
 }

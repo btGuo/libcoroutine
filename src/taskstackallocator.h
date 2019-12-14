@@ -17,10 +17,10 @@ public:
 
     void *alloc();
     void free(void *ptr);
-    void setSize(std:: size_t size);
+    void setSize(std::size_t size);
 
 private:
-    std:: size_t m_sys_pagesize{0}; ///< 系统页面大小
+    std::size_t m_sys_pagesize{0}; ///< 系统页面大小
 
     void setProtect(void *addr);
     void *_alloc();

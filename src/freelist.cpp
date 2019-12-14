@@ -3,12 +3,12 @@
 namespace co
 {
 
-std:: size_t FreeList:: getSize()
+std::size_t FreeList::getSize()
 {
     return m_size;
 }
 
-void FreeList:: setSize(std:: size_t size)
+void FreeList::setSize(std::size_t size)
 { 
     static bool mark = false;
     if(!mark)
@@ -18,12 +18,12 @@ void FreeList:: setSize(std:: size_t size)
     }
 }
 
-std:: pair<std:: size_t, std:: size_t> FreeList:: statistic()
+std::pair<std::size_t, std::size_t> FreeList::statistic()
 {
     return {m_alloc.load(), m_free.load()};
 }
 
-void *FreeList:: freelistAlloc()
+void *FreeList::freelistAlloc()
 {
     ++m_alloc;
     ListElem *cur = m_head.load();
@@ -32,7 +32,7 @@ void *FreeList:: freelistAlloc()
     return cur;
 }
 
-void FreeList:: freelistFree(void *ptr)
+void FreeList::freelistFree(void *ptr)
 {
     ++m_free;
     ListElem *elem = static_cast<ListElem *>(ptr);

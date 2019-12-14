@@ -7,7 +7,7 @@
 namespace co
 {
 
-void *TaskStackAllocator:: alloc()
+void *TaskStackAllocator::alloc()
 {
     void *ret = freelistAlloc();
     if(ret) // 在freelist中ret指向最后一个页面
@@ -15,13 +15,13 @@ void *TaskStackAllocator:: alloc()
     return _alloc();
 }
 
-void TaskStackAllocator:: free(void *ptr)
+void TaskStackAllocator::free(void *ptr)
 {
     // 指向最后一个页面处
     freelistFree(static_cast<char *>(ptr) + m_size - m_sys_pagesize);
 }
 
-void TaskStackAllocator:: setSize(std:: size_t size)
+void TaskStackAllocator::setSize(std::size_t size)
 {
     static bool mark = false;
     if(!mark)
@@ -32,12 +32,12 @@ void TaskStackAllocator:: setSize(std:: size_t size)
     }
 }
 
-void TaskStackAllocator:: setProtect(void *addr)
+void TaskStackAllocator::setProtect(void *addr)
 {
     assert(mprotect(addr, m_sys_pagesize, PROT_NONE) != -1);
 }
 
-void *TaskStackAllocator:: _alloc()
+void *TaskStackAllocator::_alloc()
 {
     //多分配一个页面
     void *ret = mmap(NULL, m_size + m_sys_pagesize, PROT_READ|PROT_WRITE,
@@ -49,7 +49,7 @@ void *TaskStackAllocator:: _alloc()
     return static_cast<char *>(ret) + m_sys_pagesize;
 }
 
-TaskStackAllocator:: TaskStackAllocator()
+TaskStackAllocator::TaskStackAllocator()
 {
     int pagesize = sysconf(_SC_PAGE_SIZE);
     if(pagesize == -1)
@@ -59,7 +59,7 @@ TaskStackAllocator:: TaskStackAllocator()
     m_size = 1UL << 20;
 }
 
-TaskStackAllocator:: ~TaskStackAllocator()
+TaskStackAllocator::~TaskStackAllocator()
 {
 }
 

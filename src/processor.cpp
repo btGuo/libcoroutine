@@ -16,7 +16,7 @@ using namespace std;
 thread_local Processor *Processor::m_curr{nullptr};
 size_t Processor::m_ids{0};
 atomic<int> Processor::m_total_tasks{0};
-ThreadSafeQueue<Task *> Processor:: m_global;
+ThreadSafeQueue<Task *> Processor::m_global;
 
 Processor::Processor(Scheduler *scheduler, size_t id)
 {
@@ -31,6 +31,7 @@ Processor *& Processor::getThisThreadProcessor()
 
 void Processor::taskBlock()
 {
+    //cout << "task " << m_running_task->getId() << " block" << endl;
     m_blocks++;
     m_running_task->block(&m_ctx);
 }
@@ -47,6 +48,7 @@ void Processor::taskWakeup(Task *task)
     m_wakeup.push(task);
     // 顺序不能反!!!
     m_blocks--;
+    //cout << "task " << task->getId() << " wakeup" << endl;
 }
 
 void Processor::addTask(Task *task)
@@ -63,20 +65,21 @@ void Processor::addTask(Task *task)
     }
 }
 
-void Processor::addTask(Task:: TaskFn fn, size_t stack_size)
+void Processor::addTask(Task::TaskFn fn, size_t stack_size)
 {
     addTask(new Task(fn, m_ids++, stack_size));
 }
 
 void Processor::runTask(Task *task)
 {
-    //cout << "[" << m_id << "] " << "get task " << task->id << endl;
+    //cout << "[" << m_id << "] " << "get task " << task->getId() << endl;
     m_running_task = task;
 
     task->swapIn(&m_ctx);
 
     if(task->taskDead())
     {
+        //cout << "[" << task->getId() << "] " << "work done" << endl;
         delete task;
         m_running_task = nullptr;
         m_total_tasks--;
@@ -152,25 +155,10 @@ void Processor::run()
         }
         
         //没有阻塞任务，在全局队列上等待
-        m_global.waitAndPop(task);
         //cout << "processor " << m_id << " wait m_global" << endl;
+        m_global.waitAndPop(task);
         m_ready.push(task);
     }
-
-    /*
-    static bool mark = false;
-    if(mark) return;
-    mark = true;
-
-    assert(m_total_tasks == 0);
-    //cout << "done\n";
-    m_scheduler->wakeupAll();    
-    */
-}
-
-void Processor::wakeup()
-{
-    //m_cv.notify_all();
 }
 
 void Processor::showStatistics()

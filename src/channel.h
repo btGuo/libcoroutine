@@ -37,7 +37,7 @@ public:
         //这里用if，不是while
         if(m_queue.size() > m_buflen)
         {
-            Processor *p = Processor:: getThisThreadProcessor();
+            Processor *p = Processor::getThisThreadProcessor();
             m_wque.push_back({p->getRunningTask(), p});
             lock.unlock();
             p->taskBlock();
@@ -49,10 +49,10 @@ public:
     Channel & operator >> (T &item)
     {
         std::unique_lock<std::mutex> lock(m_mtx);
-        //这里是while
+        //可能有假唤醒，用while
         while(m_queue.empty())
         {
-            Processor *p = Processor:: getThisThreadProcessor();
+            Processor *p = Processor::getThisThreadProcessor();
             m_rque.push_back({p->getRunningTask(), p});
             lock.unlock();
             p->taskBlock();

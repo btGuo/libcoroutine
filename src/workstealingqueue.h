@@ -16,20 +16,20 @@ class WorkStealingQueue
 public:
     WorkStealingQueue()
     {
-        tasks = std:: make_shared<CirculQueue<T>>();
+        m_tasks = std::make_shared<CirculQueue<T>>();
     }
 
-    std:: size_t size()
+    std::size_t size()
     {
-        std:: size_t bottom = m_bottom.load();
-        std:: size_t top = m_top.load();
+        std::size_t bottom = m_bottom.load();
+        std::size_t top = m_top.load();
         return bottom > top ? bottom - top : 0;
     }
 
     bool empty()
     {
-        std:: size_t top = m_top.load();
-        std:: size_t bottom = m_bottom.load();
+        std::size_t top = m_top.load();
+        std::size_t bottom = m_bottom.load();
         return bottom <= top;
     }
     
@@ -44,17 +44,17 @@ public:
      */
     void push(const T item)
     {
-        std:: size_t oldbottom = m_bottom.load();
-        std:: size_t oldtop = m_top.load();
-        std:: shared_ptr<CirculQueue<T>> curr_tasks = tasks;
+        std::size_t oldbottom = m_bottom.load();
+        std::size_t oldtop = m_top.load();
+        std::shared_ptr<CirculQueue<T>> curr_m_tasks = m_tasks;
 
         if(oldbottom > oldtop && // 先判断是否大于，因为是无符号的，不能直接相减 
-           oldbottom - oldtop >= tasks->size() - 1)
+           oldbottom - oldtop >= m_tasks->size() - 1)
         {
-            curr_tasks = curr_tasks->new_double_capacity();
-            tasks = curr_tasks;
+            curr_m_tasks = curr_m_tasks->new_double_capacity();
+            m_tasks = curr_m_tasks;
         }
-        tasks->put(oldbottom, item);
+        m_tasks->put(oldbottom, item);
         m_bottom++;
     }
 
@@ -66,15 +66,15 @@ public:
     bool pop(T &result)
     {
         m_bottom--;
-        std:: size_t oldtop = m_top.load();
-        std:: size_t newtop = oldtop + 1;
+        std::size_t oldtop = m_top.load();
+        std::size_t newtop = oldtop + 1;
         if(m_bottom < oldtop)
         {
             m_bottom.store(oldtop);
             return false;
         }
 
-        auto task = tasks->get(m_bottom.load());
+        auto task = m_tasks->get(m_bottom.load());
         if(m_bottom > oldtop)
         {
             result = task;
@@ -96,13 +96,13 @@ public:
      */
     bool steal(T &result)
     {
-        std:: size_t oldtop = m_top.load();
-        std:: size_t newtop = oldtop + 1;
-        std:: size_t oldbottom = m_bottom.load();
+        std::size_t oldtop = m_top.load();
+        std::size_t newtop = oldtop + 1;
+        std::size_t oldbottom = m_bottom.load();
 
         if(oldbottom <= oldtop)
             return false;
-        auto task = tasks->get(oldtop);
+        auto task = m_tasks->get(oldtop);
         if(!m_top.compare_exchange_strong(oldtop, newtop))
             return false;
 
@@ -111,9 +111,9 @@ public:
     }
 
 private:
-    std:: atomic<std:: size_t> m_bottom{1};
-    std:: atomic<std:: size_t> m_top{1};
-    std:: shared_ptr<CirculQueue<T>> tasks;
+    std::atomic<std::size_t>        m_bottom{1};
+    std::atomic<std::size_t>        m_top{1};
+    std::shared_ptr<CirculQueue<T>> m_tasks;
 };
 
 }
