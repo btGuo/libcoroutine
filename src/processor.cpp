@@ -74,6 +74,7 @@ void Processor::runTask(Task *task)
 {
     //cout << "[" << m_id << "] " << "get task " << task->getId() << endl;
     m_running_task = task;
+    task->setProcessor(this);
 
     task->swapIn(&m_ctx);
 

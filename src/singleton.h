@@ -4,6 +4,8 @@
 namespace co
 {
 
+#define SingletonDeclare(type) friend class Singleton<type>
+
 template <typename T>
 class Singleton
 {

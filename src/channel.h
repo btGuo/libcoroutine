@@ -14,11 +14,6 @@ template <typename T>
 class Channel 
 {
 public:
-    struct BlockEntry
-    {
-        Task *t;
-        Processor *p;
-    };
     Channel(std::size_t buflen = 0):m_buflen(buflen){}
 
     template <typename U, 
@@ -29,16 +24,16 @@ public:
         m_queue.push_back(std::forward<U>(item));
         if(!m_rque.empty())
         {
-            BlockEntry en = m_rque.front();
+            Task *t = m_rque.front();
             m_rque.pop_front();
-            en.p->taskWakeup(en.t);
+            t->getProcessor()->taskWakeup(t);
         }
             
         //这里用if，不是while
         if(m_queue.size() > m_buflen)
         {
             Processor *p = Processor::getThisThreadProcessor();
-            m_wque.push_back({p->getRunningTask(), p});
+            m_wque.push_back(p->getRunningTask());
             lock.unlock();
             p->taskBlock();
             lock.lock();
@@ -53,7 +48,7 @@ public:
         while(m_queue.empty())
         {
             Processor *p = Processor::getThisThreadProcessor();
-            m_rque.push_back({p->getRunningTask(), p});
+            m_rque.push_back(p->getRunningTask());
             lock.unlock();
             p->taskBlock();
             lock.lock();
@@ -63,9 +58,9 @@ public:
 
         if(!m_wque.empty())
         {
-            BlockEntry en = m_wque.front();
+            Task *t = m_wque.front();
             m_wque.pop_front();
-            en.p->taskWakeup(en.t);
+            t->getProcessor()->taskWakeup(t);
         }
         return *this;
     }
@@ -76,11 +71,11 @@ public:
     Channel & operator = (Channel &&ch) = delete;
 
 private:
-    std::size_t           m_buflen{0};
-    std::list<T>          m_queue;
-    std::list<BlockEntry> m_wque;
-    std::list<BlockEntry> m_rque;
-    std::mutex            m_mtx;
+    std::size_t       m_buflen{0};
+    std::list<T>      m_queue;
+    std::list<Task *> m_wque;
+    std::list<Task *> m_rque;
+    std::mutex        m_mtx;
 };
 
 }

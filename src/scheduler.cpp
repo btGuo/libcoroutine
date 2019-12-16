@@ -7,10 +7,9 @@ namespace co
 {
 using namespace std;
 
-size_t Scheduler::m_ids{0};
-
 void Scheduler::start(int min, int max)
 {
+    m_start = true;
     if(min == 0)
         min = thread::hardware_concurrency();
 
@@ -51,6 +50,11 @@ void Scheduler::showStatistics()
         p->showStatistics();
 
     cout << "===========================\n";
+}
+
+bool Scheduler::running()
+{
+    return m_start;
 }
 
 Scheduler::Scheduler()

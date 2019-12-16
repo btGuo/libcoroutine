@@ -10,7 +10,6 @@ static inline void
 co_create(co::Task::TaskFn fn, 
           size_t stack_size = co::TaskStackAllocator::getInstance().getSize())
 {
-    co::Scheduler::getInstance();
     co::Processor::getThisThreadProcessor()->addTask(fn, stack_size);
 }
 
