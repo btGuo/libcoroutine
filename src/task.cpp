@@ -1,6 +1,7 @@
-#include "task.h"
 #include "taskallocator.h"
 #include "taskstackallocator.h"
+#include "processor.h"
+#include "task.h"
 #include <stdlib.h>
 #include <iostream>
 
@@ -73,6 +74,16 @@ bool Task::taskDead()
 bool Task::taskBlock()
 {
     return m_status == TaskStatus::TaskBlock;
+}
+
+void Task::setProcessor(Processor *p)
+{
+    m_proc = p;
+}
+
+Processor *Task::getProcessor()
+{
+    return m_proc;
 }
 
 void *Task::operator new(size_t size)

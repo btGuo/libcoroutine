@@ -14,6 +14,8 @@ enum class TaskStatus
     TaskRunning, TaskDead, TaskSuspend, TaskReady, TaskBlock,
 };
 
+class Processor;
+
 class Task
 {
 public:
@@ -28,16 +30,19 @@ public:
     void swapIn(ucontext_t *pctx);
     bool taskDead();
     bool taskBlock();
+    void setProcessor(Processor *p);
+    Processor *getProcessor();
     void *operator new(std::size_t size);
     void operator delete(void *ptr);
 
 private:
+    Processor   *m_proc{nullptr};
     TaskFn       m_fn;
     ucontext_t   m_ctx;
     TaskStatus   m_status;
     char        *m_stack{nullptr};
-    std::size_t  m_stack_size;
     std::size_t  m_id;
+    std::size_t  m_stack_size;
 };
 
 }
