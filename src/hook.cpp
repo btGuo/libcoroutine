@@ -120,6 +120,8 @@ int close(int fd)
     if(disable() || !fdctx)
         return close_fn(fd);
 
+    g_contexts.erase(fdctx->getHandler());
+    free(fdctx);
     return close_fn(fd);
 }
 
