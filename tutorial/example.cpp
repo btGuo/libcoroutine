@@ -4,7 +4,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "../src/coroutine.h"
+
+#include "header.h"
 
 using namespace std;
 
@@ -48,6 +49,7 @@ int main(int argc, char **argv)
      */
     co_create(func);
 
+    /*
     //创建一个容量为0的通道
     co_chan<int> chan;
 
@@ -64,7 +66,7 @@ int main(int argc, char **argv)
         chan << 10;
         cout << "produce done" << endl;
     });
-           
+     */      
     /**
      * co_sched().start()开始调度协程，这将会阻塞当前线程，直到所有协程运行完成
      */

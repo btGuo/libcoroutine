@@ -12,7 +12,8 @@
 #include <strings.h>
 #include <fcntl.h>
 #include <errno.h>
-#include "../coroutine.h"
+
+#include "header.h"
 
 #define handler_error(msg) do{ perror(msg); exit(EXIT_FAILURE);}while(0)
 #define PORT 1234
@@ -34,23 +35,35 @@ void tcpserver()
 
     struct sockaddr_in remote;
     socklen_t len = sizeof(remote);
-    int fd = accept(listenfd, (struct sockaddr *)&remote, &len);
-    if(fd == -1)
-        handler_error("accept");
+    for(;;)
+    {
+        int fd = accept(listenfd, (struct sockaddr *)&remote, &len);
+        printf("accept %d\n", fd);
+        if(fd == -1)
+            handler_error("accept");
+    
+        co_create([fd]{
+            ssize_t ret;
+            char buf[512];
+            while((ret = read(fd, buf, 512))) 
+            {
+                if(ret == -1 && errno == EAGAIN)
+                    continue;
+                printf("read %ld(bytes)\n", ret);
+                write(fd, buf, ret);
+            }
+            if(ret == -1)
+                handler_error("read");
+            close(fd);
+        });
+    }
 
-    char buf[512];
-    ssize_t ret = read(fd, buf, 512);
-    printf("read %ld(byte)\n", ret);
-    if(ret > 0)
-        write(fd, buf, ret);
-
-    close(fd);
     close(listenfd);
 }
 
 int main(int argc, char **argv)
 {
-    //tcpserver();
+//    tcpserver();
     co_create(tcpserver);
     co_sched().start(1);
 }
