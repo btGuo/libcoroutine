@@ -24,16 +24,16 @@ public:
         m_queue.push_back(std::forward<U>(item));
         if(!m_rque.empty())
         {
-            Task *t = m_rque.front();
+            auto en = m_rque.front();
             m_rque.pop_front();
-            t->getProcessor()->taskWakeup(t);
+            en.t->getProcessor()->taskWakeup(en);
         }
             
         //这里用if，不是while
         if(m_queue.size() > m_buflen)
         {
             Processor *p = Processor::getThisThreadProcessor();
-            m_wque.push_back(p->getRunningTask());
+            m_wque.push_back(p->getSuspendEntry());
             lock.unlock();
             p->taskBlock();
             lock.lock();
@@ -48,7 +48,7 @@ public:
         while(m_queue.empty())
         {
             Processor *p = Processor::getThisThreadProcessor();
-            m_rque.push_back(p->getRunningTask());
+            m_rque.push_back(p->getSuspendEntry());
             lock.unlock();
             p->taskBlock();
             lock.lock();
@@ -58,9 +58,9 @@ public:
 
         if(!m_wque.empty())
         {
-            Task *t = m_wque.front();
+            auto en = m_wque.front();
             m_wque.pop_front();
-            t->getProcessor()->taskWakeup(t);
+            en.t->getProcessor()->taskWakeup(en);
         }
         return *this;
     }
@@ -71,11 +71,11 @@ public:
     Channel & operator = (Channel &&ch) = delete;
 
 private:
-    std::size_t       m_buflen{0};
-    std::list<T>      m_queue;
-    std::list<Task *> m_wque;
-    std::list<Task *> m_rque;
-    std::mutex        m_mtx;
+    std::size_t                        m_buflen{0};
+    std::list<T>                       m_queue;
+    std::list<Processor::SuspendEntry> m_wque;
+    std::list<Processor::SuspendEntry> m_rque;
+    std::mutex                         m_mtx;
 };
 
 }

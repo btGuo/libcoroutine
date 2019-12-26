@@ -97,9 +97,21 @@ void Task::operator delete(void *ptr)
     return TaskAllocator::getInstance().free(ptr);
 }
 
-size_t Task::getId()
+std::size_t Task::getId()
 {
     return m_id;
 }
 
+bool Task::isExpire(std::size_t expected)
+{
+    if(expected == m_suspendid.load())
+        return m_suspendid.compare_exchange_strong(expected, expected + 1);
+    return false;
 }
+
+std::size_t Task::getSuspendId()
+{
+    return m_suspendid.load();
+}
+
+}//namespace co

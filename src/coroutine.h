@@ -5,6 +5,12 @@
 #include "channel.h"
 #include "taskstackallocator.h"
 #include <functional>
+#include <chrono>
+
+template <typename T>
+using co_chan = co::Channel<T>;
+
+extern bool hook_enable;
 
 static inline void 
 co_create(co::Task::TaskFn fn, 
@@ -19,25 +25,35 @@ co_setstacksize(size_t stack_size)
     co::TaskStackAllocator::getInstance().setSize(stack_size);
 }
 
-static inline std::size_t
-co_getstacksize()
+static inline std::size_t co_getstacksize()
 {
     return co::TaskStackAllocator::getInstance().getSize();
 }
 
-static inline void 
-co_yield()
+static inline void co_yield()
 {
     co::Processor::getThisThreadProcessor()->taskYield();
 }
 
-static inline co::Scheduler &
-co_sched()
+static inline co::Scheduler &co_sched()
 {
     return co::Scheduler::getInstance();
 }
 
-template <typename T>
-using co_chan = co::Channel<T>;
+static inline void co_hook_enable()
+{
+    hook_enable = true;
+}
+
+static inline void co_hook_disable()
+{
+    hook_enable = false;
+}
+
+static inline void 
+co_sleep(std::chrono::steady_clock::duration dur)
+{
+    co::Processor::getThisThreadProcessor()->taskSleep(dur);
+}
 
 #endif

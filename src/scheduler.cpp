@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include "common.h"
 #include <iostream>
 #include <chrono>
 #include <random>
@@ -32,6 +33,15 @@ void Scheduler::start(int min, int max)
     showStatistics();
 }
 
+Timer *Scheduler::getTimer()
+{
+    static ThreadHelper thh([this]{
+        this->m_timer->run();
+    });
+        
+    return m_timer;
+}
+
 size_t Scheduler::getProcessorSize()
 {
     return m_processors.size();
@@ -59,6 +69,7 @@ bool Scheduler::running()
 
 Scheduler::Scheduler()
 {
+    m_timer = new Timer();
     m_self = new Processor(this, m_ids++);
     m_self->getThisThreadProcessor() = m_self;
     m_processors.push_back(m_self);
@@ -68,5 +79,7 @@ Scheduler::~Scheduler()
 {
     for(auto &p:m_processors)
         delete p;
+    if(m_timer)
+        delete m_timer;
 }
 }

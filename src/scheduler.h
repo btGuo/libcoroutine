@@ -5,6 +5,7 @@
 #include <vector>
 #include "processor.h"
 #include "singleton.h"
+#include "timer.h"
 
 namespace co
 {
@@ -35,10 +36,9 @@ public:
      * 打印统计信息
      */
     void showStatistics();
-    /**
-     * 获取调度器实体
-     */
     bool running();
+    Timer *getTimer();
+    
 private:
 
     std::vector<Processor *> m_processors;          ///< 所有processor队列
@@ -47,6 +47,7 @@ private:
     int                      m_max_threads{0};      ///< 最大调度线程数
     bool                     m_start{false};        ///< 启动标志
     std::size_t              m_ids{0};              ///< 用于给processor分配id
+    Timer                   *m_timer{nullptr};
 
     Scheduler();
     ~Scheduler();

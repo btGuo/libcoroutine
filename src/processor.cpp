@@ -29,6 +29,11 @@ Processor *& Processor::getThisThreadProcessor()
     return m_curr;
 }
 
+Processor::SuspendEntry Processor::getSuspendEntry()
+{
+    return {m_running_task, m_running_task->getSuspendId()};
+}
+
 void Processor::taskBlock()
 {
     //cout << "task " << m_running_task->getId() << " block" << endl;
@@ -43,12 +48,22 @@ void Processor::taskYield()
     task->yield(&m_ctx);
 }
 
-void Processor::taskWakeup(Task *task)
+void Processor::taskWakeup(SuspendEntry entry)
 {
-    m_wakeup.push(task);
+    if(entry.t->isExpire(entry.id))
+        m_wakeup.push(entry.t);
     // 顺序不能反!!!
     m_blocks--;
-    //cout << "task " << task->getId() << " wakeup" << endl;
+    //cout << "task " << entry.t->getId() << " wakeup" << endl;
+}
+
+void Processor::taskSleep(std::chrono::steady_clock::duration dur)
+{
+    auto entry = getSuspendEntry();
+    m_scheduler->getTimer()->startTimer(dur, [entry]{
+        entry.t->getProcessor()->taskWakeup(entry);
+    });
+    taskBlock();
 }
 
 void Processor::addTask(Task *task)

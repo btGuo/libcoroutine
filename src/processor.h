@@ -4,6 +4,7 @@
 #include <list>
 #include <unistd.h>
 #include <mutex>
+#include <chrono>
 #include <thread>
 #include <atomic>
 #include "workstealingqueue.h"
@@ -18,9 +19,15 @@ class Scheduler;
 class Processor
 {
 public:
+    struct SuspendEntry
+    {
+        Task *t;
+        std::size_t id;
+    };
     Processor(Scheduler *scheduler, std::size_t id);
     static Processor *& getThisThreadProcessor();
 
+    SuspendEntry getSuspendEntry();
     /// 开始调度任务
     void run();
     /// 添加任务
@@ -31,7 +38,8 @@ public:
     /// 阻塞当前任务
     void taskBlock();
     /// 唤醒任务，注意这个是异步调用
-    void taskWakeup(Task *task);
+    void taskSleep(std::chrono::steady_clock::duration dur);
+    void taskWakeup(SuspendEntry entry);
     void showStatistics();
     void runTask(Task *task);
     Task *getRunningTask();
