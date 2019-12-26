@@ -2,7 +2,7 @@ CC=g++
 CXXFLAGS=-std=c++11
 SRCS=$(wildcard *.cpp)
 OUT=$(SRCS:.cpp=)
-OUTERLIBS=../src/libcoroutine.a -lpthread -lgtest -lgtest_main
+OUTERLIBS=../src/libcoroutine.so -lpthread -lgtest -lgtest_main
 
 .PHONY:test clean
 test:
