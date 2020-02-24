@@ -121,7 +121,7 @@ int close(int fd)
         return close_fn(fd);
 
     g_contexts.erase(fdctx->getHandler());
-    free(fdctx);
+    delete fdctx;
     return close_fn(fd);
 }
 
